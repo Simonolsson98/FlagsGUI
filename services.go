@@ -44,7 +44,7 @@ func (s *CountryServiceImpl) getCleanCountryName(countryName string) string {
 		return mappedName
 	}
 
-	cleanName := strings.ReplaceAll(countryName, " ", "_")	FlagURL: fmt.Sprintf("https://flagdownload.com/wp-content/uploads/Flag_of_%s-256x128.png", cleanName),
+	cleanName := strings.ReplaceAll(countryName, " ", "_")
 	cleanName = strings.ReplaceAll(cleanName, "'", "")
 	cleanName = strings.ReplaceAll(cleanName, ".", "")
 	cleanName = strings.ReplaceAll(cleanName, "é", "e")

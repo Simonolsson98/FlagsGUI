@@ -236,21 +236,21 @@ func adjustColorShade(originalColor color.RGBA) color.RGBA {
 
 	if adjustBrightness {
 		if rand.Float64() < 0.5 {
-			v = v * (0.05 + rand.Float64()*0.15)
+			v = v * (0.10 + rand.Float64()*0.15)
 		} else {
-			v = min(1.0, v+0.4)
-			s = s * 0.5
+			v = min(1.0, v+0.35)
+			s = s * 0.3
 		}
 	} else {
 		if rand.Float64() < 0.5 {
-			s = 0.05 + rand.Float64()*0.45
+			s = 0.08 + rand.Float64()*0.15
 		} else {
 			if v >= 0.8 {
-				v = v * (0.2 + rand.Float64()*0.3)
+				v = v * (0.18 + rand.Float64()*0.22)
 			} else if s >= 0.7 {
-				v = min(1.0, v+0.5)
+				v = min(1.0, v+0.45)
 			} else {
-				s = min(1.0, s*(1.8+rand.Float64()*0.7))
+				s = min(1.0, s*(1.9+rand.Float64()*0.8))
 			}
 		}
 	}
