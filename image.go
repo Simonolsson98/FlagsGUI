@@ -7,12 +7,10 @@ import (
 	"image/color"
 	"image/png"
 	"io"
-	"log"
 	"math/rand"
 	"net/http"
 )
 
-// downloadFlagImage downloads a flag image from the given URL
 func downloadFlagImage(url string) (image.Image, error) {
 	resp, err := http.Get(url)
 	if err != nil {
@@ -20,13 +18,11 @@ func downloadFlagImage(url string) (image.Image, error) {
 	}
 	defer resp.Body.Close()
 
-	// Read the image data
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	// Decode the image
 	img, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		return nil, err
@@ -35,29 +31,24 @@ func downloadFlagImage(url string) (image.Image, error) {
 	return img, nil
 }
 
-// ColorInfo stores color with its pixel count for sorting
 type ColorInfo struct {
 	Color color.RGBA
 	Count int
 }
 
-// getDistinctColors extracts dominant colors from flag image, sorted by prominence (pixel count)
 func getDistinctColors(img image.Image) []color.RGBA {
 	bounds := img.Bounds()
-	colorMap := make(map[[3]uint8]int) // RGB only, ignore alpha variations
+	colorMap := make(map[[3]uint8]int)
 
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			c := img.At(x, y)
 			r, g, b, a := c.RGBA()
 
-			// Skip transparent/semi-transparent pixels
 			if uint8(a>>8) < 128 {
 				continue
 			}
 
-			// Quantize colors to reduce anti-aliasing variations (round to nearest 16)
-			// This groups similar colors together (e.g., RGB(200,45,50) and RGB(205,48,52) become the same)
 			rgb := [3]uint8{
 				(uint8(r>>8) / 16) * 16,
 				(uint8(g>>8) / 16) * 16,
@@ -70,12 +61,11 @@ func getDistinctColors(img image.Image) []color.RGBA {
 
 	// Calculate threshold: only return colors that appear in at least 0.5% of pixels
 	totalPixels := (bounds.Max.X - bounds.Min.X) * (bounds.Max.Y - bounds.Min.Y)
-	threshold := totalPixels / 200 // 0.5% threshold
+	threshold := totalPixels / 200
 	if threshold < 10 {
-		threshold = 10 // Minimum threshold for small images
+		threshold = 10
 	}
 
-	// Collect colors with their counts
 	var colorInfos []ColorInfo
 	for rgb, count := range colorMap {
 		if count > threshold {
@@ -100,7 +90,6 @@ func getDistinctColors(img image.Image) []color.RGBA {
 		}
 	}
 
-	// Extract just the colors, now sorted by prominence
 	var colors []color.RGBA
 	for _, info := range colorInfos {
 		colors = append(colors, info.Color)
@@ -109,7 +98,6 @@ func getDistinctColors(img image.Image) []color.RGBA {
 	return colors
 }
 
-// colorsAreSimilar checks if two colors are similar within a given tolerance
 func colorsAreSimilar(c1, c2 color.RGBA, tolerance uint8) bool {
 	diffR := int(c1.R) - int(c2.R)
 	if diffR < 0 {
@@ -127,7 +115,6 @@ func colorsAreSimilar(c1, c2 color.RGBA, tolerance uint8) bool {
 	return diffR <= int(tolerance) && diffG <= int(tolerance) && diffB <= int(tolerance)
 }
 
-// rgbToHSV converts RGB to HSV color space
 func rgbToHSV(r, g, b uint8) (h, s, v float64) {
 	rf := float64(r) / 255.0
 	gf := float64(g) / 255.0
@@ -173,7 +160,6 @@ func rgbToHSV(r, g, b uint8) (h, s, v float64) {
 	return h, s, v
 }
 
-// hsvToRGB converts HSV to RGB color space
 func hsvToRGB(h, s, v float64) (r, g, b uint8) {
 	c := v * s
 	x := c * (1 - abs(mod(h/60, 2)-1))
@@ -202,7 +188,6 @@ func hsvToRGB(h, s, v float64) (r, g, b uint8) {
 	return r, g, b
 }
 
-// Helper functions for HSV conversion
 func abs(x float64) float64 {
 	if x < 0 {
 		return -x
@@ -214,9 +199,7 @@ func mod(x, y float64) float64 {
 	return x - y*float64(int(x/y))
 }
 
-// drasticColorChange replaces a color with a completely different one
 func drasticColorChange(originalColor color.RGBA) color.RGBA {
-	// Define some contrasting colors that work well for flags
 	contrastColors := []color.RGBA{
 		{255, 0, 0, 255},     // Red
 		{0, 255, 0, 255},     // Green
@@ -231,70 +214,46 @@ func drasticColorChange(originalColor color.RGBA) color.RGBA {
 		{139, 69, 19, 255},   // Brown
 		{255, 20, 147, 255},  // Deep Pink
 	}
-
-	// Find a color that's sufficiently different from the original
 	for _, candidate := range contrastColors {
 		if !colorsAreSimilar(originalColor, candidate, 100) {
 			return candidate
 		}
 	}
 
-	// Fallback: return a high-contrast color
 	return color.RGBA{255 - originalColor.R, 255 - originalColor.G, 255 - originalColor.B, originalColor.A}
 }
 
-// adjustColorShade adjusts the brightness/saturation of a color while keeping the same hue
 func adjustColorShade(originalColor color.RGBA) color.RGBA {
-	// Convert to HSV
 	h, s, v := rgbToHSV(originalColor.R, originalColor.G, originalColor.B)
 
-	// For grayscale colors, add some color first
 	if s < 0.1 {
-		s = 0.4 + rand.Float64()*0.4 // Add moderate saturation
-		h = float64(rand.Intn(360))  // Random hue since it was grayscale
-
+		s = 0.4 + rand.Float64()*0.4
+		h = float64(rand.Intn(360))
 	}
 
-	// Randomly choose to make it darker or lighter, and more/less saturated
-	adjustBrightness := rand.Float64() < 0.5 // 50% chance to adjust brightness vs saturation
+	adjustBrightness := rand.Float64() < 0.5
 
 	if adjustBrightness {
-		// Adjust brightness (make EXTREMELY darker or lighter)
 		if rand.Float64() < 0.5 {
-			// Make much darker (reduce to 5-20% of original brightness)
 			v = v * (0.05 + rand.Float64()*0.15)
-
 		} else {
-			// Make much lighter AND washed out (increase brightness and reduce saturation)
-			v = min(1.0, v+0.4) // Boost brightness significantly
-			s = s * 0.5         // Reduce saturation to make it washed out
-
+			v = min(1.0, v+0.4)
+			s = s * 0.5
 		}
 	} else {
-		// Adjust saturation (make EXTREMELY more or less vibrant)
 		if rand.Float64() < 0.5 {
-			// Make much less saturated (very grayish - force to grayscale level)
-			s = 0.05 + rand.Float64()*0.45 // Maximum 15% saturation (very gray)
-
+			s = 0.05 + rand.Float64()*0.45
 		} else {
-			// Make much more saturated (neon-level vibrant)
 			if s >= 0.7 {
-				// Already highly saturated - make it super bright instead for neon effect
-				v = min(1.0, v+0.5) // Boost brightness significantly
-
+				v = min(1.0, v+0.5)
 			} else {
-				// Can still increase saturation
 				s = min(1.0, s*(1.8+rand.Float64()*0.7))
-
 			}
 		}
 	}
 
-	// Convert back to RGB
 	r, g, b := hsvToRGB(h, s, v)
-	newColor := color.RGBA{r, g, b, originalColor.A}
-
-	return newColor
+	return color.RGBA{r, g, b, originalColor.A}
 }
 
 func min(a, b float64) float64 {
@@ -304,7 +263,6 @@ func min(a, b float64) float64 {
 	return b
 }
 
-// modifyFlagColors applies noticeable color modifications to create incorrect version
 func modifyFlagColors(img image.Image, correct bool) image.Image {
 	if correct {
 		return img
@@ -312,27 +270,19 @@ func modifyFlagColors(img image.Image, correct bool) image.Image {
 
 	var allColors []color.RGBA = getDistinctColors(img)
 	if len(allColors) == 0 {
-		log.Printf("⚠️  DEBUG: No distinct colors found in image for modification")
-		return img // No colors to modify
+		return img
 	}
 
-	log.Printf("🎨 DEBUG: Found %d distinct colors to potentially modify", len(allColors))
-
-	// Collect all suitable colors that can be modified
 	var suitableColors []color.RGBA
 	for _, c := range allColors {
-		// Skip very light colors (likely borders, anti-aliasing, or text)
-		// Also skip very dark colors that might be tiny details
 		brightness := (int(c.R) + int(c.G) + int(c.B)) / 3
 		if brightness > 40 && brightness < 240 {
 			suitableColors = append(suitableColors, c)
 		}
 	}
 
-	// If no suitable colors found, try less strict criteria
 	if len(suitableColors) == 0 {
 		for _, c := range allColors {
-			// Just avoid pure white and pure black
 			brightness := (int(c.R) + int(c.G) + int(c.B)) / 3
 			if brightness > 20 && brightness < 235 {
 				suitableColors = append(suitableColors, c)
@@ -340,47 +290,28 @@ func modifyFlagColors(img image.Image, correct bool) image.Image {
 		}
 	}
 
-	// Randomly select one of the suitable colors
 	var colorToBeModified color.RGBA
 	if len(suitableColors) > 0 {
 		randomIndex := rand.Intn(len(suitableColors))
 		colorToBeModified = suitableColors[randomIndex]
-		log.Printf("🎲 DEBUG: Randomly selected color %d out of %d suitable colors", randomIndex+1, len(suitableColors))
 	}
 
-	// Last resort: pick the most prominent color
 	if colorToBeModified.R == 0 && colorToBeModified.G == 0 && colorToBeModified.B == 0 && len(allColors) > 0 {
 		colorToBeModified = allColors[0]
-		log.Printf("🎲 DEBUG: Fallback - randomly pick the most prominent color: %d out of %d total colors", colorToBeModified, len(allColors))
 	}
 
-	log.Printf("🎯 DEBUG: Selected color to modify: R=%d, G=%d, B=%d",
-		colorToBeModified.R, colorToBeModified.G, colorToBeModified.B)
-
-	// Randomly choose modification strategy
-	useDrasticChange := rand.Float64() < 0.5 // 50% chance for drastic change, 50% for shade adjustment
+	useDrasticChange := rand.Float64() < 0.5
 
 	var newColor color.RGBA
 	if useDrasticChange {
 		newColor = drasticColorChange(colorToBeModified)
-		log.Printf("💥 DEBUG: Applied DRASTIC change: R=%d, G=%d, B=%d -> R=%d, G=%d, B=%d",
-			colorToBeModified.R, colorToBeModified.G, colorToBeModified.B,
-			newColor.R, newColor.G, newColor.B)
 	} else {
 		newColor = adjustColorShade(colorToBeModified)
-		log.Printf("� DEBUG: Applied SHADE ADJUSTMENT: R=%d, G=%d, B=%d -> R=%d, G=%d, B=%d",
-			colorToBeModified.R, colorToBeModified.G, colorToBeModified.B,
-			newColor.R, newColor.G, newColor.B)
 	}
 
-	// Create a new image with modified colors
 	bounds := img.Bounds()
 	modified := image.NewRGBA(bounds)
 	modifiedPixels := 0
-	totalPixels := (bounds.Max.X - bounds.Min.X) * (bounds.Max.Y - bounds.Min.Y)
-
-	// Track similar colors we're NOT modifying (for debugging)
-	unmatchedColors := make(map[[3]uint8]int)
 
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
@@ -402,47 +333,22 @@ func modifyFlagColors(img image.Image, correct bool) image.Image {
 			quantizedB := (origB / 16) * 16
 			quantizedPixel := color.RGBA{quantizedR, quantizedG, quantizedB, 255}
 
-			// Use very generous tolerance to catch all variations of the target color
 			isMatch := colorsAreSimilar(quantizedPixel, colorToBeModified, 32) ||
 				colorsAreSimilar(origRGBA, colorToBeModified, 100)
 
 			if !isMatch {
-				// Track colors similar to our target that we're NOT modifying
-				if colorsAreSimilar(origRGBA, colorToBeModified, 150) {
-					colorKey := [3]uint8{origR, origG, origB}
-					unmatchedColors[colorKey]++
-				}
 				modified.Set(x, y, originalColor)
 				continue
 			}
 
-			// Apply the new color
 			modified.Set(x, y, newColor)
 			modifiedPixels++
 		}
 	}
 
-	log.Printf("✏️  DEBUG: Modified %d out of %d pixels (%.2f%%)",
-		modifiedPixels, totalPixels, float64(modifiedPixels)/float64(totalPixels)*100)
-
-	// Report similar but unmatched colors
-	if len(unmatchedColors) > 0 {
-		log.Printf("🔍 DEBUG: Found %d similar but unmatched color variations:", len(unmatchedColors))
-		for colorKey, count := range unmatchedColors {
-			if count > 50 { // Only report significant amounts
-				log.Printf("   R=%d, G=%d, B=%d (%d pixels)", colorKey[0], colorKey[1], colorKey[2], count)
-			}
-		}
-	}
-
-	if modifiedPixels == 0 {
-		log.Printf("⚠️  WARNING: No pixels were modified! The color modification failed.")
-	}
-
 	return modified
 }
 
-// imageToBase64 converts an image to a base64 encoded string
 func imageToBase64(img image.Image) (string, error) {
 	var buf bytes.Buffer
 	err := png.Encode(&buf, img)
