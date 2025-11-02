@@ -29,6 +29,7 @@ func main() {
 
 	// Register handlers with dependency injection
 	http.HandleFunc("/", indexHandler(deps))
+	http.HandleFunc("/setup", setupPlayersHandler(deps))
 	http.HandleFunc("/new", newGameHandler(deps))
 	http.HandleFunc("/guess", guessHandler(deps))
 

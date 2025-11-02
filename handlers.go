@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -33,7 +34,17 @@ type ImageService interface {
 // indexHandler returns a handler function with injected dependencies
 func indexHandler(deps *Dependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl, err := template.New("index").Parse(htmlTemplate)
+		var tmpl *template.Template
+		var err error
+
+		if !deps.GameState.GameStarted {
+			// Show player setup page
+			tmpl, err = template.New("setup").Parse(setupTemplate)
+		} else {
+			// Show game page
+			tmpl, err = template.New("index").Parse(htmlTemplate)
+		}
+
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -46,6 +57,23 @@ func indexHandler(deps *Dependencies) http.HandlerFunc {
 func newGameHandler(deps *Dependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rand.NewSource(rand.NewSource(time.Now().UnixNano()).Int63())
+
+		// Move to next player if this is not the first game
+		if deps.GameState.ShowResult && len(deps.GameState.Players) > 0 {
+			deps.GameState.CurrentPlayer = (deps.GameState.CurrentPlayer + 1) % len(deps.GameState.Players)
+
+			// Check if we've completed a full round (back to first player)
+			if deps.GameState.CurrentPlayer == 0 {
+				deps.GameState.CurrentRound++
+
+				// Check if game is over
+				if deps.GameState.CurrentRound > deps.GameState.TotalRounds {
+					deps.GameState.GameOver = true
+					http.Redirect(w, r, "/", http.StatusSeeOther)
+					return
+				}
+			}
+		}
 
 		var country CountryFlag
 		if debugCountry != "" {
@@ -61,13 +89,12 @@ func newGameHandler(deps *Dependencies) http.HandlerFunc {
 			country = deps.CountryService.GetRandomCountry()
 		}
 
-		// In debug mode, always show the modified flag to test color changes
 		var isCorrect bool
 		if debugCountry != "" {
-			isCorrect = false // Always show modified flag in debug mode
+			isCorrect = false // In debug mode, always show the modified flag to test color changes
 			log.Printf("🐛 DEBUG: Forcing modified flag display for testing")
 		} else {
-			isCorrect = rand.Intn(2) == 0 // Random in normal mode
+			isCorrect = rand.Intn(2) == 0
 		}
 
 		// Download the original flag
@@ -75,7 +102,6 @@ func newGameHandler(deps *Dependencies) http.HandlerFunc {
 		for err != nil {
 			log.Printf("Error downloading flag for %s: %v", country.Name, err)
 			if debugCountry != "" {
-				// In debug mode, don't fall back to random country
 				http.Error(w, fmt.Sprintf("Failed to download flag for debug country %s", debugCountry), http.StatusInternalServerError)
 				return
 			}
@@ -122,6 +148,67 @@ func newGameHandler(deps *Dependencies) http.HandlerFunc {
 	}
 }
 
+// setupPlayersHandler handles player setup
+func setupPlayersHandler(deps *Dependencies) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			// Reset game state and show setup page
+			deps.GameState.GameStarted = false
+			deps.GameState.GameOver = false
+			deps.GameState.Players = nil
+			deps.GameState.CurrentPlayer = 0
+			deps.GameState.CurrentRound = 0
+			deps.GameState.TotalRounds = 0
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+
+		if r.Method != "POST" {
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+
+		r.ParseForm()
+		playerNames := r.Form["playerName"]
+
+		// Get number of rounds
+		totalRounds := 10 // Default
+		if roundsStr := r.FormValue("numRounds"); roundsStr != "" {
+			if rounds, err := strconv.Atoi(roundsStr); err == nil && rounds > 0 {
+				totalRounds = rounds
+			}
+		}
+
+		// Limit to 4 players and filter empty names
+		var players []Player
+		for i, name := range playerNames {
+			if i >= 4 {
+				break
+			}
+			name = strings.TrimSpace(name)
+			if name != "" {
+				players = append(players, Player{Name: name})
+			}
+		}
+
+		if len(players) == 0 {
+			// No valid players, stay on setup page
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+
+		deps.GameState.Players = players
+		deps.GameState.CurrentPlayer = 0
+		deps.GameState.GameStarted = true
+		deps.GameState.TotalRounds = totalRounds
+		deps.GameState.CurrentRound = 1
+		deps.GameState.GameOver = false
+		deps.GameState.ShowResult = false
+
+		http.Redirect(w, r, "/new", http.StatusSeeOther)
+	}
+}
+
 // guessHandler returns a handler function with injected dependencies
 func guessHandler(deps *Dependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -134,27 +221,29 @@ func guessHandler(deps *Dependencies) http.HandlerFunc {
 			userCorrect = !deps.GameState.IsCorrect
 		}
 
-		deps.GameState.Total++
+		// Update current player's score
+		player := &deps.GameState.Players[deps.GameState.CurrentPlayer]
+		player.Total++
 		if userCorrect {
-			deps.GameState.Correct++
+			player.Correct++
 			deps.GameState.ResultCorrect = true
 			if deps.GameState.IsCorrect {
-				deps.GameState.ResultMessage = "This is indeed the correct " + deps.GameState.CountryName + " flag!"
+				deps.GameState.ResultMessage = player.Name + ": This is indeed the correct " + deps.GameState.CountryName + " flag!"
 			} else {
-				deps.GameState.ResultMessage = "Good eye! This flag had incorrect colors."
+				deps.GameState.ResultMessage = player.Name + ": Good eye! This flag had incorrect colors."
 			}
 		} else {
-			deps.GameState.Incorrect++
+			player.Incorrect++
 			deps.GameState.ResultCorrect = false
 			if deps.GameState.IsCorrect {
-				deps.GameState.ResultMessage = "This was actually the correct " + deps.GameState.CountryName + " flag."
+				deps.GameState.ResultMessage = player.Name + ": This was actually the correct " + deps.GameState.CountryName + " flag."
 			} else {
-				deps.GameState.ResultMessage = "This flag had wrong colors - you missed it!"
+				deps.GameState.ResultMessage = player.Name + ": This flag had wrong colors - you missed it!"
 			}
 		}
 
-		if deps.GameState.Total > 0 {
-			deps.GameState.Percentage = (deps.GameState.Correct * 100) / deps.GameState.Total
+		if player.Total > 0 {
+			player.Percentage = (player.Correct * 100) / player.Total
 		}
 
 		deps.GameState.ShowResult = true
