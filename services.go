@@ -69,7 +69,7 @@ func (s *CountryServiceImpl) GetRandomCountry() CountryFlag {
 	randomCountry := countryList[rand.Intn(len(countryList))]
 	countryName := randomCountry.Name.Common
 	cleanName := s.getCleanCountryName(countryName)
-	flagURL := fmt.Sprintf("https://flagdownload.com/wp-content/uploads/Flag_of_%s-256x128.png", cleanName)
+	flagURL := fmt.Sprintf("https://flagdownload.com/wp-content/uploads/Flag_of_%s-512x256.png", cleanName)
 
 	return CountryFlag{
 		Name:    countryName,
@@ -92,7 +92,7 @@ func (s *ImageServiceImpl) DownloadFlag(url string) (image.Image, error) {
 }
 
 func (s *ImageServiceImpl) downloadWithHeightFallbacks(originalURL string) (image.Image, error) {
-	if !strings.Contains(originalURL, "Flag_of_") || !strings.Contains(originalURL, "-256x") {
+	if !strings.Contains(originalURL, "Flag_of_") || !strings.Contains(originalURL, "-512x") {
 		return downloadFlagImage(originalURL)
 	}
 
@@ -101,8 +101,8 @@ func (s *ImageServiceImpl) downloadWithHeightFallbacks(originalURL string) (imag
 		return downloadFlagImage(originalURL)
 	}
 
-	countryPart := strings.Split(parts[1], "-256x")[0]
-	baseURL := parts[0] + "Flag_of_" + countryPart + "-256x%d.png"
+	countryPart := strings.Split(parts[1], "-512x")[0]
+	baseURL := parts[0] + "Flag_of_" + countryPart + "-512x%d.png"
 	for height := 130; height >= 126; height-- {
 		url := fmt.Sprintf(baseURL, height)
 		if img, err := downloadFlagImage(url); err == nil {

@@ -7,6 +7,7 @@ import (
 	"image/color"
 	"image/png"
 	"io"
+	"log"
 	"math/rand"
 	"net/http"
 )
@@ -244,7 +245,9 @@ func adjustColorShade(originalColor color.RGBA) color.RGBA {
 		if rand.Float64() < 0.5 {
 			s = 0.05 + rand.Float64()*0.45
 		} else {
-			if s >= 0.7 {
+			if s >= 0.7 && v >= 0.7 {
+				v = v * (0.2 + rand.Float64()*0.3)
+			} else if s >= 0.7 {
 				v = min(1.0, v+0.5)
 			} else {
 				s = min(1.0, s*(1.8+rand.Float64()*0.7))
@@ -270,8 +273,11 @@ func modifyFlagColors(img image.Image, correct bool) image.Image {
 
 	var allColors []color.RGBA = getDistinctColors(img)
 	if len(allColors) == 0 {
+		log.Printf("⚠️  No distinct colors found in image")
 		return img
 	}
+
+	log.Printf("🎨 Found %d distinct colors to potentially modify", len(allColors))
 
 	var suitableColors []color.RGBA
 	for _, c := range allColors {
@@ -294,24 +300,36 @@ func modifyFlagColors(img image.Image, correct bool) image.Image {
 	if len(suitableColors) > 0 {
 		randomIndex := rand.Intn(len(suitableColors))
 		colorToBeModified = suitableColors[randomIndex]
+		log.Printf("🎲 Randomly selected color %d out of %d suitable colors", randomIndex+1, len(suitableColors))
 	}
 
 	if colorToBeModified.R == 0 && colorToBeModified.G == 0 && colorToBeModified.B == 0 && len(allColors) > 0 {
 		colorToBeModified = allColors[0]
+		log.Printf("🎲 Fallback - using most prominent color")
 	}
+
+	log.Printf("🎯 Selected color to modify: R=%d, G=%d, B=%d",
+		colorToBeModified.R, colorToBeModified.G, colorToBeModified.B)
 
 	useDrasticChange := rand.Float64() < 0.5
 
 	var newColor color.RGBA
 	if useDrasticChange {
 		newColor = drasticColorChange(colorToBeModified)
+		log.Printf("💥 Applied DRASTIC change: R=%d, G=%d, B=%d -> R=%d, G=%d, B=%d",
+			colorToBeModified.R, colorToBeModified.G, colorToBeModified.B,
+			newColor.R, newColor.G, newColor.B)
 	} else {
 		newColor = adjustColorShade(colorToBeModified)
+		log.Printf("🎨 Applied SHADE ADJUSTMENT: R=%d, G=%d, B=%d -> R=%d, G=%d, B=%d",
+			colorToBeModified.R, colorToBeModified.G, colorToBeModified.B,
+			newColor.R, newColor.G, newColor.B)
 	}
 
 	bounds := img.Bounds()
 	modified := image.NewRGBA(bounds)
 	modifiedPixels := 0
+	totalPixels := (bounds.Max.X - bounds.Min.X) * (bounds.Max.Y - bounds.Min.Y)
 
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
@@ -344,6 +362,13 @@ func modifyFlagColors(img image.Image, correct bool) image.Image {
 			modified.Set(x, y, newColor)
 			modifiedPixels++
 		}
+	}
+
+	log.Printf("✏️  Modified %d out of %d pixels (%.2f%%)",
+		modifiedPixels, totalPixels, float64(modifiedPixels)/float64(totalPixels)*100)
+
+	if modifiedPixels == 0 {
+		log.Printf("⚠️  WARNING: No pixels were modified!")
 	}
 
 	return modified

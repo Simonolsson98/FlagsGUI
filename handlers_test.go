@@ -153,11 +153,10 @@ func TestNewGameHandlerWithDownloadError(t *testing.T) {
 func Test_GIVEN_CorrectFlag_WHEN_AnsweringCorrectly_THEN_ExpectCorrectResponse(t *testing.T) {
 	// Arrange
 	gameState := &GameState{
-		IsCorrect:   true,
-		CountryName: "TestCountry",
-		Total:       0,
-		Correct:     0,
-		Incorrect:   0,
+		IsCorrect:     true,
+		CountryName:   "TestCountry",
+		TotalRounds:   1,
+		ResultCorrect: true,
 	}
 
 	deps := &Dependencies{
@@ -180,14 +179,8 @@ func Test_GIVEN_CorrectFlag_WHEN_AnsweringCorrectly_THEN_ExpectCorrectResponse(t
 	}
 
 	// Check game state was updated correctly
-	if gameState.Total != 1 {
-		t.Errorf("Expected Total to be 1, got %d", gameState.Total)
-	}
-	if gameState.Correct != 1 {
-		t.Errorf("Expected Correct to be 1, got %d", gameState.Correct)
-	}
-	if gameState.Incorrect != 0 {
-		t.Errorf("Expected Incorrect to be 0, got %d", gameState.Incorrect)
+	if gameState.TotalRounds != 1 {
+		t.Errorf("Expected TotalRounds to be 1, got %d", gameState.TotalRounds)
 	}
 	if !gameState.ResultCorrect {
 		t.Error("Expected ResultCorrect to be true")
@@ -206,11 +199,10 @@ func Test_GIVEN_CorrectFlag_WHEN_AnsweringCorrectly_THEN_ExpectCorrectResponse(t
 func Test_GIVEN_CorrectFlag_WHEN_AnsweringIncorrectly_THEN_ExpectWrongAnswerResponse(t *testing.T) {
 	// Arrange
 	gameState := &GameState{
-		IsCorrect:   true, // Flag is correct
-		CountryName: "TestCountry",
-		Total:       0,
-		Correct:     0,
-		Incorrect:   0,
+		IsCorrect:     true, // Flag is correct
+		CountryName:   "TestCountry",
+		TotalRounds:   0,
+		ResultCorrect: true,
 	}
 	deps := &Dependencies{
 		GameState: gameState,
@@ -226,14 +218,8 @@ func Test_GIVEN_CorrectFlag_WHEN_AnsweringIncorrectly_THEN_ExpectWrongAnswerResp
 	handler.ServeHTTP(rr, req)
 
 	// Assert
-	if gameState.Total != 1 {
-		t.Errorf("Expected Total to be 1, got %d", gameState.Total)
-	}
-	if gameState.Correct != 0 {
-		t.Errorf("Expected Correct to be 0, got %d", gameState.Correct)
-	}
-	if gameState.Incorrect != 1 {
-		t.Errorf("Expected Incorrect to be 1, got %d", gameState.Incorrect)
+	if gameState.TotalRounds != 1 {
+		t.Errorf("Expected TotalRounds to be 1, got %d", gameState.TotalRounds)
 	}
 	if gameState.ResultCorrect {
 		t.Error("Expected ResultCorrect to be false")
