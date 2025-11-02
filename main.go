@@ -4,9 +4,18 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 )
 
+var debugCountry string // Global debug country variable
+
 func main() {
+	// Check for debug mode with specific country
+	if len(os.Args) > 1 {
+		debugCountry = os.Args[1]
+		fmt.Printf("🐛 DEBUG MODE: Testing with country '%s'\n", debugCountry)
+	}
+
 	// Create dependencies
 	gameState := &GameState{}
 	countryService := NewCountryService()

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"image"
 	"log"
@@ -45,13 +46,29 @@ func newGameHandler(deps *Dependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rand.NewSource(rand.NewSource(time.Now().UnixNano()).Int63())
 
-		country := deps.CountryService.GetRandomCountry()
+		var country CountryFlag
+		if debugCountry != "" {
+			// Debug mode: create country with specified name
+			country = CountryFlag{
+				Name:    debugCountry,
+				FlagURL: fmt.Sprintf("https://flagdownload.com/wp-content/uploads/Flag_of_%s-256x128.png", debugCountry),
+			}
+			log.Printf("🐛 DEBUG: Using country '%s'", country.Name)
+		} else {
+			country = deps.CountryService.GetRandomCountry()
+		}
+
 		isCorrect := rand.Intn(2) == 0
 
 		// Download the original flag
 		originalImg, err := deps.ImageService.DownloadFlag(country.FlagURL)
 		for err != nil {
 			log.Printf("Error downloading flag for %s: %v", country.Name, err)
+			if debugCountry != "" {
+				// In debug mode, don't fall back to random country
+				http.Error(w, fmt.Sprintf("Failed to download flag for debug country %s", debugCountry), http.StatusInternalServerError)
+				return
+			}
 			country = deps.CountryService.GetRandomCountry()
 			originalImg, err = deps.ImageService.DownloadFlag(country.FlagURL)
 		}

@@ -82,8 +82,8 @@ func (s *CountryServiceImpl) GetRandomCountry() CountryFlag {
 	// Get the clean name for URL construction
 	cleanName := s.getCleanCountryName(countryName)
 
-	// Construct the flag URL with 171px height as default (will fallback to other heights if needed)
-	flagURL := fmt.Sprintf("https://flagdownload.com/wp-content/uploads/Flag_of_%s-256x171.png", cleanName)
+	// Construct the flag URL with 128px height as default (will fallback to other heights if needed)
+	flagURL := fmt.Sprintf("https://flagdownload.com/wp-content/uploads/Flag_of_%s-256x128.png", cleanName)
 
 	return CountryFlag{
 		Name:    countryName,
@@ -113,10 +113,8 @@ func (s *ImageServiceImpl) DownloadFlag(url string) (image.Image, error) {
 
 // downloadWithHeightFallbacks tries multiple height variations for 256px width flags
 func (s *ImageServiceImpl) downloadWithHeightFallbacks(originalURL string) (image.Image, error) {
-	// Extract country name from URL for fallback attempts
-	// Original: https://flagdownload.com/wp-content/uploads/Flag_of_Sweden-256x171.png
 	if !strings.Contains(originalURL, "Flag_of_") || !strings.Contains(originalURL, "-256x") {
-		return downloadFlagImage(originalURL) // Return original error if URL format doesn't match
+		return downloadFlagImage(originalURL)
 	}
 
 	// Extract the country name and base URL structure
@@ -127,15 +125,19 @@ func (s *ImageServiceImpl) downloadWithHeightFallbacks(originalURL string) (imag
 
 	countryPart := strings.Split(parts[1], "-256x")[0]
 	baseURL := parts[0] + "Flag_of_" + countryPart + "-256x%d.png"
-
-	for height := 200; height >= 100; height-- {
-		fallbackURL := fmt.Sprintf(baseURL, height)
-		if img, err := downloadFlagImage(fallbackURL); err == nil {
+	for height := 130; height >= 126; height-- {
+		url := fmt.Sprintf(baseURL, height)
+		if img, err := downloadFlagImage(url); err == nil {
 			return img, nil
 		}
 	}
 
-	// If all fallbacks fail, return the original error
+	squareURL := parts[0] + "Flag_of_" + countryPart + "_Flat_Square-512x512.png"
+	if img, err := downloadFlagImage(squareURL); err == nil {
+		return img, nil
+	}
+
+	// Return the original error
 	return downloadFlagImage(originalURL)
 }
 

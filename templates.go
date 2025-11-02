@@ -45,8 +45,9 @@ const htmlTemplate = `
         }
         .flag-image {
             display: block;
-            max-width: 100%;
+            width: 300px;
             height: auto;
+            max-height: 200%;
         }
         .question {
             font-size: 24px;
@@ -160,8 +161,9 @@ const htmlTemplate = `
             color: #495057;
         }
         .flag-thumbnail {
-            width: 80px;
-            height: 80px;
+            display: block;
+            max-width: 100%;
+            height: auto;
             border: 2px solid #333;
             border-radius: 4px;
             object-fit: cover;

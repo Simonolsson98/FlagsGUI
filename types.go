@@ -1,6 +1,5 @@
 package main
 
-// GameState represents the current state of the flag quiz game
 type GameState struct {
 	IsCorrect     bool   // Whether the current flag is the correct one
 	CountryName   string // Name of the current country
@@ -16,7 +15,6 @@ type GameState struct {
 	Percentage    int    // Accuracy percentage
 }
 
-// CountryFlag represents a country and its flag URL
 type CountryFlag struct {
 	Name    string // Country name
 	FlagURL string // URL to the flag image
