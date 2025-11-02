@@ -21,6 +21,3 @@ type CountryFlag struct {
 	Name    string // Country name
 	FlagURL string // URL to the flag image
 }
-
-// Global game state instance
-var gameState = &GameState{}

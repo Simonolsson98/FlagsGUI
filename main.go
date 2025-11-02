@@ -7,14 +7,26 @@ import (
 )
 
 func main() {
-	http.HandleFunc("/", indexHandler)
-	http.HandleFunc("/new", newGameHandler)
-	http.HandleFunc("/guess", guessHandler)
+	// Create dependencies
+	gameState := &GameState{}
+	countryService := NewCountryService()
+	imageService := NewImageService()
+
+	deps := &Dependencies{
+		GameState:      gameState,
+		CountryService: countryService,
+		ImageService:   imageService,
+	}
+
+	// Register handlers with dependency injection
+	http.HandleFunc("/", indexHandler(deps))
+	http.HandleFunc("/new", newGameHandler(deps))
+	http.HandleFunc("/guess", guessHandler(deps))
 
 	port := ":8080"
 	url := "http://localhost" + port
 
-	fmt.Printf("Starting Flag Quiz Game server on %s\n", url)
+	fmt.Printf("Starting Flag Quiz Game server (with DI) on %s\n", url)
 	fmt.Println("Opening browser...")
 
 	// Open browser after a short delay
