@@ -104,7 +104,7 @@ func getCountry(deps *Dependencies) CountryFlag {
 		cleanName := strings.ReplaceAll(debugCountry, " ", "_")
 		country := CountryFlag{
 			Name:    debugCountry,
-			FlagURL: fmt.Sprintf("https://flagdownload.com/wp-content/uploads/Flag_of_%s-256x128.png", cleanName),
+			FlagURL: fmt.Sprintf("https://flagdownload.com/wp-content/uploads/Flag_of_%s-512x256.png", cleanName),
 		}
 		log.Printf("🐛 DEBUG: Using country '%s' with URL: %s", country.Name, country.FlagURL)
 		return country

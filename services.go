@@ -20,23 +20,23 @@ func NewCountryService() CountryService {
 }
 
 var countryNameMappings = map[string]string{
-	"Taiwan":                           "Taiwan",
-	"United States":                    "United_States_of_America",
-	"United Kingdom":                   "United_Kingdom",
-	"South Korea":                      "South_Korea",
-	"North Korea":                      "North_Korea",
-	"Czech Republic":                   "Czech_Republic",
-	"Dominican Republic":               "Dominican_Republic",
-	"Central African Republic":         "Central_African_Republic",
-	"Democratic Republic of the Congo": "Democratic_Republic_of_the_Congo",
-	"Costa Rica":                       "Costa_Rica",
-	"Puerto Rico":                      "Puerto_Rico",
-	"Hong Kong":                        "Hong_Kong",
-	"Cape Verde":                       "Cape_Verde",
-	"São Tomé and Príncipe":            "Sao_Tome_and_Principe",
-	"Bosnia and Herzegovina":           "Bosnia_and_Herzegovina",
-	"Trinidad and Tobago":              "Trinidad_and_Tobago",
-	"Antigua and Barbuda":              "Antigua_and_Barbuda",
+	"Taiwan":                   "Taiwan",
+	"United States":            "United_States_of_America",
+	"United Kingdom":           "United_Kingdom",
+	"South Korea":              "South_Korea",
+	"North Korea":              "North_Korea",
+	"Czech Republic":           "Czech_Republic",
+	"Dominican Republic":       "Dominican_Republic",
+	"Central African Republic": "Central_African_Republic",
+	"DR Congo":                 "Democratic_Republic_of_the_Congo",
+	"Costa Rica":               "Costa_Rica",
+	"Puerto Rico":              "Puerto_Rico",
+	"Hong Kong":                "Hong_Kong",
+	"Cape Verde":               "Cape_Verde",
+	"São Tomé and Príncipe":    "Sao_Tome_and_Principe",
+	"Bosnia and Herzegovina":   "Bosnia_and_Herzegovina",
+	"Trinidad and Tobago":      "Trinidad_and_Tobago",
+	"Antigua and Barbuda":      "Antigua_and_Barbuda",
 }
 
 func (s *CountryServiceImpl) getCleanCountryName(countryName string) string {
@@ -44,7 +44,7 @@ func (s *CountryServiceImpl) getCleanCountryName(countryName string) string {
 		return mappedName
 	}
 
-	cleanName := strings.ReplaceAll(countryName, " ", "_")
+	cleanName := strings.ReplaceAll(countryName, " ", "_")	FlagURL: fmt.Sprintf("https://flagdownload.com/wp-content/uploads/Flag_of_%s-256x128.png", cleanName),
 	cleanName = strings.ReplaceAll(cleanName, "'", "")
 	cleanName = strings.ReplaceAll(cleanName, ".", "")
 	cleanName = strings.ReplaceAll(cleanName, "é", "e")
@@ -115,7 +115,7 @@ func (s *ImageServiceImpl) downloadWithHeightFallbacks(originalURL string) (imag
 		return img, nil
 	}
 
-	fmt.Printf("fuck you: %s\n", countryPart)
+	fmt.Printf("country flag: %s was not found\n", countryPart)
 	return downloadFlagImage(originalURL)
 }
 
