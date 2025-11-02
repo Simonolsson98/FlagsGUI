@@ -252,34 +252,49 @@ func adjustColorShade(originalColor color.RGBA) color.RGBA {
 	if s < 0.1 {
 		s = 0.4 + rand.Float64()*0.4 // Add moderate saturation
 		h = float64(rand.Intn(360))  // Random hue since it was grayscale
+
 	}
 
 	// Randomly choose to make it darker or lighter, and more/less saturated
 	adjustBrightness := rand.Float64() < 0.5 // 50% chance to adjust brightness vs saturation
 
 	if adjustBrightness {
-		// Adjust brightness (make MUCH darker or lighter)
+		// Adjust brightness (make EXTREMELY darker or lighter)
 		if rand.Float64() < 0.5 {
-			// Make much darker (reduce brightness by 60-80%)
-			v = v * (0.2 + rand.Float64()*0.2)
+			// Make much darker (reduce to 5-20% of original brightness)
+			v = v * (0.05 + rand.Float64()*0.15)
+
 		} else {
-			// Make much lighter (increase brightness by 40-80%)
-			v = min(1.0, v*(1.4+rand.Float64()*0.4))
+			// Make much lighter AND washed out (increase brightness and reduce saturation)
+			v = min(1.0, v+0.4) // Boost brightness significantly
+			s = s * 0.5         // Reduce saturation to make it washed out
+
 		}
 	} else {
-		// Adjust saturation (make MUCH more or less vibrant)
+		// Adjust saturation (make EXTREMELY more or less vibrant)
 		if rand.Float64() < 0.5 {
-			// Make much less saturated (very grayish)
-			s = s * (0.1 + rand.Float64()*0.3)
+			// Make much less saturated (very grayish - force to grayscale level)
+			s = 0.05 + rand.Float64()*0.45 // Maximum 15% saturation (very gray)
+
 		} else {
-			// Make much more saturated (very vibrant)
-			s = min(1.0, s*(1.5+rand.Float64()*0.5))
+			// Make much more saturated (neon-level vibrant)
+			if s >= 0.7 {
+				// Already highly saturated - make it super bright instead for neon effect
+				v = min(1.0, v+0.5) // Boost brightness significantly
+
+			} else {
+				// Can still increase saturation
+				s = min(1.0, s*(1.8+rand.Float64()*0.7))
+
+			}
 		}
 	}
 
 	// Convert back to RGB
 	r, g, b := hsvToRGB(h, s, v)
-	return color.RGBA{r, g, b, originalColor.A}
+	newColor := color.RGBA{r, g, b, originalColor.A}
+
+	return newColor
 }
 
 func min(a, b float64) float64 {
@@ -303,34 +318,40 @@ func modifyFlagColors(img image.Image, correct bool) image.Image {
 
 	log.Printf("🎨 DEBUG: Found %d distinct colors to potentially modify", len(allColors))
 
-	// Select a prominent color that isn't white/near-white (colors are already sorted by prominence)
-	var colorToBeModified color.RGBA
+	// Collect all suitable colors that can be modified
+	var suitableColors []color.RGBA
 	for _, c := range allColors {
 		// Skip very light colors (likely borders, anti-aliasing, or text)
 		// Also skip very dark colors that might be tiny details
 		brightness := (int(c.R) + int(c.G) + int(c.B)) / 3
 		if brightness > 40 && brightness < 240 {
-			// This is a good prominent color to modify
-			colorToBeModified = c
-			break
+			suitableColors = append(suitableColors, c)
 		}
 	}
 
-	// If no suitable color found, try less strict criteria
-	if colorToBeModified.R == 0 && colorToBeModified.G == 0 && colorToBeModified.B == 0 {
+	// If no suitable colors found, try less strict criteria
+	if len(suitableColors) == 0 {
 		for _, c := range allColors {
 			// Just avoid pure white and pure black
 			brightness := (int(c.R) + int(c.G) + int(c.B)) / 3
 			if brightness > 20 && brightness < 235 {
-				colorToBeModified = c
-				break
+				suitableColors = append(suitableColors, c)
 			}
 		}
+	}
+
+	// Randomly select one of the suitable colors
+	var colorToBeModified color.RGBA
+	if len(suitableColors) > 0 {
+		randomIndex := rand.Intn(len(suitableColors))
+		colorToBeModified = suitableColors[randomIndex]
+		log.Printf("🎲 DEBUG: Randomly selected color %d out of %d suitable colors", randomIndex+1, len(suitableColors))
 	}
 
 	// Last resort: pick the most prominent color
 	if colorToBeModified.R == 0 && colorToBeModified.G == 0 && colorToBeModified.B == 0 && len(allColors) > 0 {
 		colorToBeModified = allColors[0]
+		log.Printf("🎲 DEBUG: Fallback - randomly pick the most prominent color: %d out of %d total colors", colorToBeModified, len(allColors))
 	}
 
 	log.Printf("🎯 DEBUG: Selected color to modify: R=%d, G=%d, B=%d",
@@ -381,10 +402,13 @@ func modifyFlagColors(img image.Image, correct bool) image.Image {
 			quantizedB := (origB / 16) * 16
 			quantizedPixel := color.RGBA{quantizedR, quantizedG, quantizedB, 255}
 
-			// Use generous tolerance to catch all variations of the target color
-			if !colorsAreSimilar(quantizedPixel, colorToBeModified, 16) && !colorsAreSimilar(origRGBA, colorToBeModified, 80) {
+			// Use very generous tolerance to catch all variations of the target color
+			isMatch := colorsAreSimilar(quantizedPixel, colorToBeModified, 32) ||
+				colorsAreSimilar(origRGBA, colorToBeModified, 100)
+
+			if !isMatch {
 				// Track colors similar to our target that we're NOT modifying
-				if colorsAreSimilar(origRGBA, colorToBeModified, 120) {
+				if colorsAreSimilar(origRGBA, colorToBeModified, 150) {
 					colorKey := [3]uint8{origR, origG, origB}
 					unmatchedColors[colorKey]++
 				}

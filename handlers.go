@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -49,16 +50,25 @@ func newGameHandler(deps *Dependencies) http.HandlerFunc {
 		var country CountryFlag
 		if debugCountry != "" {
 			// Debug mode: create country with specified name
+			// Use the same URL format as the country service
+			cleanName := strings.ReplaceAll(debugCountry, " ", "_")
 			country = CountryFlag{
 				Name:    debugCountry,
-				FlagURL: fmt.Sprintf("https://flagdownload.com/wp-content/uploads/Flag_of_%s-256x128.png", debugCountry),
+				FlagURL: fmt.Sprintf("https://flagdownload.com/wp-content/uploads/Flag_of_%s-256x128.png", cleanName),
 			}
-			log.Printf("🐛 DEBUG: Using country '%s'", country.Name)
+			log.Printf("🐛 DEBUG: Using country '%s' with URL: %s", country.Name, country.FlagURL)
 		} else {
 			country = deps.CountryService.GetRandomCountry()
 		}
 
-		isCorrect := rand.Intn(2) == 0
+		// In debug mode, always show the modified flag to test color changes
+		var isCorrect bool
+		if debugCountry != "" {
+			isCorrect = false // Always show modified flag in debug mode
+			log.Printf("🐛 DEBUG: Forcing modified flag display for testing")
+		} else {
+			isCorrect = rand.Intn(2) == 0 // Random in normal mode
+		}
 
 		// Download the original flag
 		originalImg, err := deps.ImageService.DownloadFlag(country.FlagURL)
