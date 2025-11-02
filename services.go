@@ -115,6 +115,7 @@ func (s *ImageServiceImpl) downloadWithHeightFallbacks(originalURL string) (imag
 		return img, nil
 	}
 
+	fmt.Printf("fuck you: %s\n", countryPart)
 	return downloadFlagImage(originalURL)
 }
 

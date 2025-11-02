@@ -245,7 +245,7 @@ func adjustColorShade(originalColor color.RGBA) color.RGBA {
 		if rand.Float64() < 0.5 {
 			s = 0.05 + rand.Float64()*0.45
 		} else {
-			if s >= 0.7 && v >= 0.7 {
+			if v >= 0.8 {
 				v = v * (0.2 + rand.Float64()*0.3)
 			} else if s >= 0.7 {
 				v = min(1.0, v+0.5)
@@ -282,17 +282,8 @@ func modifyFlagColors(img image.Image, correct bool) image.Image {
 	var suitableColors []color.RGBA
 	for _, c := range allColors {
 		brightness := (int(c.R) + int(c.G) + int(c.B)) / 3
-		if brightness > 40 && brightness < 240 {
+		if brightness > 20 && brightness < 240 {
 			suitableColors = append(suitableColors, c)
-		}
-	}
-
-	if len(suitableColors) == 0 {
-		for _, c := range allColors {
-			brightness := (int(c.R) + int(c.G) + int(c.B)) / 3
-			if brightness > 20 && brightness < 235 {
-				suitableColors = append(suitableColors, c)
-			}
 		}
 	}
 

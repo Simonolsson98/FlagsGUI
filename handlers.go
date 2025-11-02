@@ -57,19 +57,20 @@ func newGameHandler(deps *Dependencies) http.HandlerFunc {
 
 		country := getCountry(deps)
 
-		originalImg, err := downloadFlagWithRetry(deps, country)
+		originalImg, actualCountry, err := downloadFlagWithRetry(deps, country)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		deps.GameState.IsCorrect = shouldShowCorrectFlag()
+		deps.GameState.CountryName = actualCountry.Name
 
 		if err := prepareFlagData(deps, originalImg); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		deps.GameState.IsCorrect = shouldShowCorrectFlag()
-		deps.GameState.CountryName = country.Name
 		deps.GameState.ShowResult = false
 
 		http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -119,17 +120,17 @@ func shouldShowCorrectFlag() bool {
 	return rand.Intn(2) == 0
 }
 
-func downloadFlagWithRetry(deps *Dependencies, country CountryFlag) (image.Image, error) {
+func downloadFlagWithRetry(deps *Dependencies, country CountryFlag) (image.Image, CountryFlag, error) {
 	originalImg, err := deps.ImageService.DownloadFlag(country.FlagURL)
 	for err != nil {
 		log.Printf("Error downloading flag for %s: %v", country.Name, err)
 		if debugCountry != "" {
-			return nil, fmt.Errorf("failed to download flag for debug country %s", debugCountry)
+			return nil, country, fmt.Errorf("failed to download flag for debug country %s", debugCountry)
 		}
 		country = deps.CountryService.GetRandomCountry()
 		originalImg, err = deps.ImageService.DownloadFlag(country.FlagURL)
 	}
-	return originalImg, nil
+	return originalImg, country, nil
 }
 
 func prepareFlagData(deps *Dependencies, originalImg image.Image) error {

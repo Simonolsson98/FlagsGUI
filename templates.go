@@ -16,9 +16,9 @@ const setupTemplate = `
         }
         .container {
             background-color: white;
-            padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 5px;
+            border-radius: 5px;
+            box-shadow: 0 4px 5px rgba(0,0,0,0.1);
         }
         h1 {
             color: #2c3e50;
@@ -179,9 +179,8 @@ const htmlTemplate = `
         }
         .flag-image {
             display: block;
-            width: 300px;
-            height: auto;
-            max-height: 200%;
+            max-height: 100%;
+            max-width: 200%;
         }
         .question {
             font-size: 24px;
